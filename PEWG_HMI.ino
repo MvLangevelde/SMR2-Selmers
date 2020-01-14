@@ -24,7 +24,6 @@ void setup(){
   //LCD setup
   myGLCD.InitLCD(PORTRAIT);
   myGLCD.clrScr();
-  myGLCD.setBrightness(16);
 
   myTouch.InitTouch(PORTRAIT);
   myTouch.setPrecision(PREC_HI);
