@@ -4,8 +4,9 @@
 UTFT    myGLCD(ILI9341_16,53,52,51,50);
 URTouch myTouch(6, 5, 4, 3, 2);
 
-extern unsigned short numpad[0x12C00];
-extern unsigned short numpadwo[0x12C00];
+extern unsigned short numpad_up[0x12C00];
+extern unsigned short numpad_down[0x12C00];
+extern unsigned short numpad_empty_up[0x12C00];
 //extern unsigned short load[0x12C00];
 extern uint8_t SmallFont[];
 extern uint8_t BigFont[];
@@ -120,10 +121,12 @@ void loop(){
 void drawNumPad() {
   myGLCD.clrScr();
   if (d_temp == ""){
-    myGLCD.drawBitmap(0,0,240,320,numpadwo);
+    myGLCD.drawBitmap(0,0,240,160,numpad_empty_up);
+    myGLCD.drawBitmap(0,160,240,160,numpad_down);
   }
   else{
-    myGLCD.drawBitmap(0,0,240,320,numpad);
+    myGLCD.drawBitmap(0,0,240,160,numpad_up);
+    myGLCD.drawBitmap(0,160,240,160,numpad_down);
     myGLCD.setColor(255,255,255);
     myGLCD.setFont(SevenSegNumFont);
     myGLCD.print(d_temp,15,12);
