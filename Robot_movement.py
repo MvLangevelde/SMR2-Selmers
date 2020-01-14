@@ -1,4 +1,4 @@
-k#!/usr/bin/env python3
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
 Created on Tue Dec 17 10:53:02 2019
@@ -10,23 +10,14 @@ from urx import Robot
 import numpy as np
 import math
 from Spiral_weld_0 import *
-
-#XYZ coordinates of spiral weld end
-x, y, z = [180,100,150]
-
-#Iterations
-it = 500
+import time
+import serial
 
 #Radius of the pipe
-r = 230
+r = 328 
 
 #Starting position
-start = [-0.7550, 0.00384, 0.57738, math.pi, 0, 0]
-start_circle = [-0.7550 - 0.150, -0.00384, 0.57738, math.pi, 0, 0]
-
-#Arcmovements
-spiral_move = spiralweld(x, y, z, it, r, start)
-spiral_move_back = spiralweldback(x, y, z, it, r, start)
+start = [0.708, 0.155, 0.000, math.pi, 0, 0]
 
 if __name__ == "__main__":
     
@@ -34,31 +25,56 @@ if __name__ == "__main__":
     
     try:
             
-        print('Moving to start position')
+        print('-------------------------')
+        print('Setting TCP to [0, 0, 0]')
+        print('-------------------------')
+    
+        robot.set_tcp([0,0,0,0,0,0])
         
-        robot.movel(start)
+        print('Moving to start position......')
+        print('-------------------------')
         
-        print('Moving 150 mm in y direction')
+        robot.movel(start, vel = 2.0, acc = 1.0)
+        arduinocheck()
         
-        robot.movel([-0.150,0,0,0,0,0], relative = True)
+        robot.movel([0, 0, -0.500, 0, 0, 0], relative = True, wait = False, vel = 0.003, acc = 1)
         
-        print('Weld is not detected')
-            
-        quartercircle(230, start_circle, 'iterated')
+        print('End switch checking...')
+        print('-------------------------')
+    
+        while True:                   
+            if switch() >= 300:
+                robot.stop()
+                print('Found the pipe!')
+                print('-------------------------')
+                start = robot.getl()
+                break
         
-        print('Weld is detected')
+        print('Moving 15 cm forward......')
+        print('-------------------------')
         
-        robot.movels(quartercircle(230, start_circle), vel = 2, acc = 0.5)
+        robot.movel([-0.150,0,0,0,0,0], relative = True)#, vel = 2.0, acc = 1.0)
+        start_circle = robot.getl()
         
-        print('Going to start position')
+        print('Searching for weld......')
+        print('-------------------------')
+
+        arduinocheck()
+        robot.movels(quartercircle(r, start_circle), wait = False)
+             
+        while True:           
+            if induxion() <= 3:
+                robot.stop()
+                print('Found the weld!')
+                print('-------------------------')
+                welpos = robot.getl()
+                x, y, z = spiralcoords(start, welpos)
+                break
         
-        robot.movel(start, vel = 2, acc = 0.5)
-        
-        print('Grinding...')
-        
-        robot.movels(spiral_move)
-        robot.movels(spiral_move_back)
-        
+        robot.movel([0,0,y/1000,0,0,0], relative = True)#, vel = 2.0, acc = 1.0)
+        robot.movel(start)#, vel = 2.0, acc = 1.0)
+        robot.movels(spiralcoordinates(start, welpos, r))
+        robot.movels(spiralback(start, welpos, r))
         
     finally:
         print('Movement done')
