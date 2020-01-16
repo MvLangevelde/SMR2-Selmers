@@ -1,0 +1,84 @@
+#: import NoTransition kivy.uix.screenmanager.NoTransition
+
+WindowManager:
+    transition: NoTransition()
+    Home:
+    Control:
+    
+<Home>:
+    name: "hme"
+    
+    FloatLayout:
+        Label:
+            pos_hint: {"center_x": 0.5, "center_y":0.9}
+            font_size: 50
+            text: "Pipe End Weld Grinding Tool"
+        Label:
+            pos_hint:{"center_x":0.5, "center_y":0.7}
+            font_size: 20
+            text: "SMR 2:\nWesley Damen\nMartin van Langevelde\nWouter Lettinga\nYouri Verschut"
+        Button:
+            pos_hint: {"center_x":0.3,"center_y":0.2}
+            size_hint: 0.35, 0.1
+            font_size: 20
+            text: "Go to control screen"
+            on_release:
+                app.root.current = "ctrl"
+        Button:
+            pos_hint: {"center_x":0.7,"center_y":0.2}
+            size_hint: 0.35, 0.1
+            font_size: 20
+            text: "Exit"
+            on_release:
+                app.stop()
+        Image:
+            source: 'Selmers.png'
+            pos_hint: {"center_x":0.3,"center_y":0.5}
+            size: self.texture_size
+        Image:
+            source: 'smr.jpg'
+            pos_hint: {"center_x":0.7,"center_y":0.5}
+            size: self.texture_size
+        
+<Control>:
+    name: "ctrl"
+
+    GridLayout:
+        cols: 2
+        GridLayout:
+            cols: 1
+            Image:
+                source: 'Selmers.png'
+            Image:
+                source: 'smr.jpg'
+            Label:
+                size_hint_y: 0.1
+                font_size: 20
+                text: "Input diameter in mm:"
+            TextInput:
+                id: diameter
+                size_hint_y: 0.1
+                font_size: 20
+                multiline: False
+            GridLayout:
+                size_hint_y: 0.2
+                cols: 2
+                Button:
+                    font_size: 20
+                    text: "Confirm diameter"
+                    on_release:
+                        root.ConfirmDiameter()
+                Button:
+                    font_size: 20
+                    text: "Start grinding"
+                    on_release: 
+                        root.Start()
+            Button:
+                size_hint_y: 0.2
+                font_size: 20
+                text: "Homescreen"
+                on_release:
+                    app.root.current = "hme"
+        GridLayout:
+            cols: 1
+            id: log       
