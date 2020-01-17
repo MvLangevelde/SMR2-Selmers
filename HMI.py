@@ -12,9 +12,9 @@ import Spiral_weld_0 as sw
 import serial
 from urx import Robot
 import math
+import time
 
-
-Window.fullscreen = 'auto'
+#Window.fullscreen = 'auto'
 
 class Home(Screen):
     pass
@@ -24,10 +24,9 @@ class Control(Screen):
     d = ''
     log_string = ''
     state = 0
-#    robot = Robot("192.168.0.20", True)
-#    arduino = serial.Serial('/dev/cu.usbmodem144201', 9600)
-    start = [0.708, 0.155, 0.000, math.pi, 0, 0]
-
+    robot = Robot("192.168.0.20", True)
+    arduino = serial.Serial('/dev/cu.usbmodem144101', 9600)
+    start = [1.381, 0.164, -0.104, 3.12, -0.0014, -0.1275]
         
     def __init__(self, **kwargs):
         super(Control, self).__init__(**kwargs)
@@ -53,7 +52,7 @@ class Control(Screen):
                 if int(self.d) == 0:
                     self.log_string = "Not a valid input (zero input)"                     
                 else:
-                    self.log_string = "The diameter is set at " + self.d + " mm\n"
+                    self.log_string = "The diameter is set at " + self.d + " mm\nPress 'Start grinding'\n"
                     self.r = int(self.d)/2
         else:
             self.log_string = "Not a valid input (no input)"
@@ -61,26 +60,34 @@ class Control(Screen):
         self.Refresh()
 
     def Start(self):
+        print(self.log_string)
         if ("The diameter is set" in self.log_string):
-            self.robot.set_tcp([0,0,0,0,0,0])
-            self.robot.movel(self.start, vel = 2.0, acc = 1.0)
+#            self.robot.set_tcp([0,0,0,0,0,0])
+            self.robot.movel(self.start)#, vel = 2.0, acc = 1.0)
             if self.state == 0:
                 self.state = 1
                 self.Start()
             elif self.state == 1:
                 sw.arduinocheck()
+                self.log_string += "Homing\n"
+                self.Refresh()
                 self.robot.movel([0, 0, -0.500, 0, 0, 0], relative = True, wait = False, vel = 0.003, acc = 1)
-                Clock.schedule_interval(self.CheckForPipe,1/10)
+                Clock.schedule_interval(self.CheckForPipe,1/1000)
             elif self.state == 2:
                 sw.arduinocheck()
                 self.robot.set_analog_out(0, 0.5)
-                Clock.schedule_interval(self.CheckForWeld,1/10)
+                Clock.schedule_interval(self.CheckForWeld,1/1000)
             elif self.state == 3:
                 sw.arduinocheck()
+                self.robot.movel([0, 0, 0.01, 0, 0, 0], relative = True)
+                self.robot.movel([-0.050, 0, 0, 0, 0, 0], relative = True)
+                self.robot.movel([0, 0, -0.01, 0, 0, 0], relative = True)
+                self.start_circle = self.robot.getl()
+                print(self.start_circle)
                 self.robot.movels(sw.quartercircle(self.r, self.start_circle), wait = False)
-                Clock.schedule_interval(self.WeldDirection,1/10)
+                Clock.schedule_interval(self.WeldDirection,1/1000)
             elif self.state == 4:
-                Clock.schedule_interval(self.Set,1/10)
+                Clock.schedule_interval(self.Set,1/1000)
             elif self.state == 5:
                 self.Grinding()
         elif ("The diameter is set" not in self.log_string and self.state == 0):
@@ -117,19 +124,22 @@ class Control(Screen):
         if "Finding weld direction\n" not in self.log_string:
             self.log_string += "Finding weld direction\n"
             self.Refresh()
+        x_set = False
         if sw.induxion() <= 3:
             self.robot.stop()
             self.welpos = self.robot.getl()
-            x, self.y, z = sw.spiralcoords(self.start, self.welpos)
+            d_x, self.d_y, d_z = sw.spiralcoords(self.start, self.welpos)
+            x_set = True
             Clock.unschedule(self.WeldDirection)               
-        if (x >= -0.025 and x <= 0.025):
-            self.state = 4
-            self.log_string += "Direction is parallel to axis of rotation\n"
-            self.Refresh()
-        else:
-            self.state = 4
-            self.log_string = "Direction has angle to axis of rotation\nAngle is " + self.angle + " degrees\n"
-            self.Refresh()
+        if x_set:
+            if (d_x >= -0.05 and d_x <= 0.05):
+                self.state = 4
+                self.log_string += "Direction of weld is parallel to axis of rotation\n"
+                self.Refresh()
+            elif d_x > 0.05:
+                self.state = 4
+                self.log_string += "Direction of weld has angle to axis of rotation\nAngle is x degrees\n"
+                self.Refresh()
             self.Start()
             
     def Set(self,dt):
@@ -138,7 +148,7 @@ class Control(Screen):
             self.Refresh()
         #movement to pipe
         self.state = 5
-        self.log_string += "Finished"
+        self.log_string += "Tool tuned"
         self.Refresh()        
         self.Start()
     
@@ -156,6 +166,7 @@ class Control(Screen):
         
     def Refresh(self):
         self.clear_widgets()
+        print("refresh")
         self.__init__()
 
 class WindowManager(ScreenManager):
