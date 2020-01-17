@@ -124,22 +124,18 @@ class Control(Screen):
         if "Finding weld direction\n" not in self.log_string:
             self.log_string += "Finding weld direction\n"
             self.Refresh()
-        x_set = False
         if sw.induxion() <= 3:
             self.robot.stop()
             self.welpos = self.robot.getl()
             d_x, self.d_y, d_z = sw.spiralcoords(self.start, self.welpos)
-            x_set = True
             Clock.unschedule(self.WeldDirection)               
-        if x_set:
             if (d_x >= -0.05 and d_x <= 0.05):
                 self.state = 4
                 self.log_string += "Direction of weld is parallel to axis of rotation\n"
-                self.Refresh()
             elif d_x > 0.05:
                 self.state = 4
                 self.log_string += "Direction of weld has angle to axis of rotation\nAngle is x degrees\n"
-                self.Refresh()
+            self.Refresh()
             self.Start()
             
     def Set(self,dt):
