@@ -98,11 +98,15 @@ class Control(Screen):
         
     def Stop(self):
         if self.state != 0:
+            Clock.unschedule(self.CheckForPipe)
+            Clock.unschedule(self.CheckForWeld)
+            Clock.unschedule(self.WeldDirection)               
+            Clock.unschedule(self.Set)
             self.robot.stop()
-            self.log_string += "STOPPING PROCESS!\nHoming"
+            self.log_string += "STOPPING PROCESS!\nHoming\n"
             self.Refresh()
             self.robot.movel(self.start)#, vel = 2.0, acc = 1.0) #first go to safe position
-            self.log_string += "PROCESS STOPPED AND RESET!\nPress 'Start grinding' to restart the process \nor enter different diameter than" + self.d
+            self.log_string += "PROCESS STOPPED AND RESET!\nPress 'Start grinding' to restart the process \nor enter different diameter than " + self.d + "\n"
             self.state = 0
             self.Refresh()
             
@@ -154,6 +158,7 @@ class Control(Screen):
             self.log_string += "Tuning on pipe\n"
             self.Refresh()
         #movement to pipe
+        Clock.unschedule(self.Set)
         self.state = 5
         self.log_string += "Tool tuned"
         self.Refresh()        
