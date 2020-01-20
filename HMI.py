@@ -41,23 +41,24 @@ class Control(Screen):
         self.add_widget(self.log)        
     
     def ConfirmDiameter(self):
-        self.d = self.ids.diameter.text
+        if state == 0:
+            self.d = self.ids.diameter.text
         
-        if self.d:
-            try:
-                int(self.d)
-            except:
-                self.log_string = "Not a valid input (no integer)" 
-            else:
-                if int(self.d) == 0:
-                    self.log_string = "Not a valid input (zero input)"                     
+            if self.d:
+                try:
+                    int(self.d)
+                except:
+                    self.log_string = "Not a valid input (no integer)" 
                 else:
-                    self.log_string = "The diameter is set at " + self.d + " mm\nPress 'Start grinding'\n"
-                    self.r = int(self.d)/2
-        else:
-            self.log_string = "Not a valid input (no input)"
-                
-        self.Refresh()
+                    if int(self.d) == 0:
+                        self.log_string = "Not a valid input (zero input)"                     
+                    else:
+                        self.log_string = "The diameter is set at " + self.d + " mm\nPress 'Start grinding'\n"
+                        self.r = int(self.d)/2
+            else:
+                self.log_string = "Not a valid input (no input)"
+
+            self.Refresh()
 
     def Start(self):
         print(self.log_string)
@@ -94,6 +95,16 @@ class Control(Screen):
             self.log_string = "No diameter set"
             self.Refresh()
         print(self.state)
+        
+    def Stop(self):
+        if state != 0:
+            self.robot.stop()
+            self.log_string += "STOPPING PROCESS!\nHoming"
+            self.Refresh()
+            self.robot.movel(self.start)#, vel = 2.0, acc = 1.0) #first go to safe position
+            self.log_string += "PROCESS STOPPED AND RESET!\nPress 'Start grinding' to restart the process \nor enter different diameter than" + self.d
+            self.state = 0
+            self.Refresh()
             
     def CheckForPipe(self,dt):
         if "Approach pipe\n" not in self.log_string:
