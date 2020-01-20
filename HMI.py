@@ -41,7 +41,7 @@ class Control(Screen):
         self.add_widget(self.log)        
     
     def ConfirmDiameter(self):
-        if state == 0:
+        if self.state == 0:
             self.d = self.ids.diameter.text
         
             if self.d:
@@ -97,7 +97,7 @@ class Control(Screen):
         print(self.state)
         
     def Stop(self):
-        if state != 0:
+        if self.state != 0:
             self.robot.stop()
             self.log_string += "STOPPING PROCESS!\nHoming"
             self.Refresh()
