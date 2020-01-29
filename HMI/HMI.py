@@ -14,7 +14,7 @@ from urx import Robot
 import math
 import time
 
-Window.fullscreen = 'auto'
+#Window.fullscreen = 'auto'
 
 class Home(Screen):
     pass
@@ -24,9 +24,9 @@ class Control(Screen):
     d = ''
     log_string = ''
     state = 0
-    robot = Robot("192.168.0.20", True)
-    arduino = serial.Serial('/dev/cu.usbmodem144101', 9600)
-    start = [1.381, 0.164, -0.104, 3.12, -0.0014, -0.1275]
+#    robot = sw.robot
+#    arduino = sw.arduino
+    start = [1.334, -0.168, -0.030, 3.13, 0.00, 0.00]
         
     def __init__(self, **kwargs):
         super(Control, self).__init__(**kwargs)
@@ -48,17 +48,15 @@ class Control(Screen):
                 try:
                     int(self.d)
                 except:
-                    self.log_string = "Not a valid input (no integer)" 
+                    self.Refresh("Not a valid input (no integer)", False)
                 else:
-                    if int(self.d) == 0:
-                        self.log_string = "Not a valid input (zero input)"                     
+                    if int(self.d) == 0:   
+                        self.Refresh("Not a valid input (zero input)", False)
                     else:
-                        self.log_string = "The diameter is set at " + self.d + " mm\nPress 'Start grinding'\n"
+                        self.Refresh("The diameter is set at " + self.d + " mm\nPress 'Start grinding'\n", False)
                         self.r = int(self.d)/2
             else:
-                self.log_string = "Not a valid input (no input)"
-
-            self.Refresh()
+                self.Refresh("Not a valid input (no input)", False)
 
     def Start(self):
         print(self.log_string)
@@ -66,45 +64,44 @@ class Control(Screen):
             
             #Startup & homing
             if self.state == 0:
-                self.robot.set_analog_out(0, 0.0)
-                self.robot.wet_analog_out(1, 0.0)
-                self.robot.set_tool_voltage(0)
-                self.robot.set_digital_out(1, False)
-                self.log_string += "Homing\n"
-                self.Refresh()
-                self.robot.movel(self.start, vel = 1.0, acc = 1.0)
+                sw.robot.set_analog_out(0, 0.0)
+                sw.robot.set_analog_out(1, 0.0)
+                sw.robot.set_tool_voltage(0)
+                sw.robot.set_digital_out(1, False)
+                self.Refresh("Homing\n", True)
+                sw.robot.movel(self.start, vel = 1.0, acc = 1.0)
                 self.state = 1
                 self.Start()
             
             #Go to pipe
             elif self.state == 1:
                 sw.arduinocheck()
-                self.robot.movel([0, 0, -0.500, 0, 0, 0], relative = True, wait = False, vel = 0.007, acc = 1)
+                sw.robot.movel([0, 0, -0.500, 0, 0, 0], relative = True, wait = False, vel = 0.007, acc = 1)
                 Clock.schedule_interval(self.CheckForPipe,1/1000)
                 
             #Looking for weld
             elif self.state == 2:
-                self.robot.set_analog_out(0, 0.5)
+                sw.robot.set_analog_out(0, 0.5)
                 Clock.schedule_interval(self.CheckForWeld,1/1000)
                 
             #Looking for direction
             elif self.state == 3:
-                self.robot.movel([0, 0, 0.03, 0, 0, 0], relative = True)
-                self.robot.movel([-0.090, 0, 0, 0, 0, 0], relative = True, wait = True)
-                self.robot.movel([0, 0, -0.03, 0, 0, 0], relative = True)
-                self.start_circle = self.robot.getl()
+                sw.robot.movel([0, 0, 0.03, 0, 0, 0], relative = True)
+                sw.robot.movel([-0.090, 0, 0, 0, 0, 0], relative = True, wait = True)
+                sw.robot.movel([0, 0, -0.03, 0, 0, 0], relative = True)
+                self.start_circle = sw.robot.getl()
                 sw.arduinocheck()
-                self.robot.movels(sw.quartercircle(self.r, self.start_circle), wait = False)
+                sw.robot.movels(sw.quartercircle(self.r, self.start_circle), wait = False)
                 Clock.schedule_interval(self.WeldDirection,1/1000)
                 
             #Set grinder on pipe
             elif self.state == 4:
-                self.robot.movel([0, 0, self.y_w/1000 + 0.090, 0, 0, 0], relative = True)
-                self.robot.movel(self.startgrinder_offset, vel = 2.0, acc = 1.0)
-                self.robot.movels(sw.grindsetup(self.r + 78, self.startgrinder_offset), wait = False)
+                sw.robot.movel([0, 0, self.y_w/1000 + 0.090, 0, 0, 0], relative = True)
+                sw.robot.movel(self.startgrinder_offset, vel = 2.0, acc = 1.0)
+                sw.robot.movels(sw.grindsetup(self.r + 78, self.startgrinder_offset), wait = False)
                 time.sleep(10)
-                self.robot.stop()
-                self.robot.translate_tool([0, 0, 1], vel = 0.003, acc = 1, wait = False)
+                sw.robot.stop()
+                sw.robot.translate_tool([0, 0, 1], vel = 0.003, acc = 1, wait = False)
                 Clock.schedule_interval(self.Set,1/1000)
             
             #Grinding
@@ -116,8 +113,7 @@ class Control(Screen):
                 self.Reset()
             
         elif ("The diameter is set" not in self.log_string and self.state == 0):
-            self.log_string = "No diameter set"
-            self.Refresh()
+            self.Refresh("No diameter set", False)
         
     def Stop(self):
         if self.state != 0:
@@ -125,106 +121,103 @@ class Control(Screen):
             Clock.unschedule(self.CheckForWeld)
             Clock.unschedule(self.WeldDirection)               
             Clock.unschedule(self.Set)
-            self.robot.stop()
-            self.log_string += "STOPPING PROCESS!\nHoming\n"
-            self.Refresh()
-            self.robot.movel(self.start)#, vel = 2.0, acc = 1.0) #first go to safe position
-            self.log_string += "PROCESS STOPPED AND RESET!\nPress 'Start grinding' to restart the process \nor enter different diameter than " + self.d + "\n"
+            sw.robot.stop()
+            sw.robot.set_analog_out(0, 0.0)
+            sw.robot.set_analog_out(1, 0.0)
+            sw.robot.set_tool_voltage(0)          
+            self.Refresh("STOPPING PROCESS!\nHoming\n", True)
+            #go to safe position
+            sw.robot.set_digital_out(1, False)
             self.state = 0
-            self.Refresh()
+            self.Refresh("PROCESS STOPPED AND RESET!\nPress 'Start grinding' to restart the process \nor enter different diameter than " + self.d + "\n", True)
             
     def CheckForPipe(self,dt):
         if "Approach pipe\n" not in self.log_string:
-            self.log_string += "Approach pipe\n"
-            self.Refresh()
-        if sw.switch() <= 0.1:
-            self.robot.stop()
+            self.Refresh("Approach pipe\n", True)
+        if sw.switch() <= 3:
+            sw.robot.stop()
             Clock.unschedule(self.CheckForPipe)
-            self.robot.movel([0, 0, -0.006, 0, 0, 0], relative = True, vel = 0.003, acc = 1)
-            self.start = self.robot.getl()
+            sw.robot.movel([0, 0, -0.006, 0, 0, 0], relative = True, vel = 0.003, acc = 1)
+            self.start = sw.robot.getl()
             self.startgrinder = sw.sensor_grind_coords(self.start)
-            self.startgrinder_flipped = sw.sensor_grind_coords_flipped(self.start)
-            self.startgrinder_offset = sw.offset(self.startgrinder_flipped, 0, 0, 0.030)
+#            self.startgrinder_flipped = sw.sensor_grind_coords_flipped(self.start)
+            self.startgrinder_offset = sw.offset(self.startgrinder, 0, 0, 0.030)
             self.state = 2
-            self.log_string += "Tool on pipe\n"
-            self.Refresh()
+            self.Refresh("Tool on pipe\n", True)
             self.Start()
             
     def CheckForWeld(self,dt):
         if "Looking for weld\n" not in self.log_string:
-            self.log_string += "Looking for weld\n"
-            self.Refresh()
-        if sw.induxion() <= 0.1:
-            self.robot.set_analog_out(0, 0)
+            self.Refresh("Looking for weld\n", True)
+        if sw.induxion() <= 3:
+            sw.robot.set_analog_out(0, 0)
             Clock.unschedule(self.CheckForWeld)
             self.state = 3
-            self.log_string += "Weld detected\n"
-            self.Refresh()
+            self.Refresh("Weld detected\n", True)
             self.Start()
     
     def WeldDirection(self,dt):
         if "Finding weld direction\n" not in self.log_string:
-            self.log_string += "Finding weld direction\n"
-            self.Refresh()
-        if sw.induxion() <= 0.1:
-            self.robot.stop()
+            self.Refresh("Finding weld direction\n", True)
+        if sw.induxion() <= 3:
+            sw.robot.stop()
             Clock.unschedule(self.WeldDirection)
-            self.welpos = self.robot.getl()
+            self.welpos = sw.robot.getl()
             self.welposgrinder = sw.sensor_grind_coords(self.welpos)
-            self.welposgrinder_flipped = sw.sensor_grind_coords_flipped(self.welpos)
+#            self.welposgrinder_flipped = sw.sensor_grind_coords_flipped(self.welpos)
             self.welposgrinder_offset = sw.offset(self.welposgrinder, 0, 0, 0.030)
-            self.welposgrinder_flipped_offset = sw.offset(self.welposgrinder_flipped, 0, 0, 0.030)
+#            self.welposgrinder_flipped_offset = sw.offset(self.welposgrinder_flipped, 0, 0, 0.030)
             self.x_w, self.y_w, self.z_w = sw.spiralcoords(self.start, self.welpos)               
             if (self.x_w >= -0.05 and self.x_w <= 0.05):
                 self.state = 4
-                self.log_string += "Weld is straight\n"
+                self.Refresh("Weld is straight\n", True)
             elif self.x_w > 0.05:
                 self.state = 4
-                self.log_string += "Weld is spiraling\n"
-            self.Refresh()
+                self.Refresh("Weld is spiraling\n", True)
             self.Start()
             
     def Set(self,dt):
         if "Tuning on pipe\n" not in self.log_string:
-            self.log_string += "Tuning on pipe\n"
-            self.Refresh()
-        if sw.endstop_grinder() <= 0.1:
-            self.robot.stop()
+            self.Refresh("Tuning on pipe\n", True)
+        if sw.endstop_grinder() <= 50:
+            sw.robot.stop()
             Clock.unschedule(self.Set)
-            self.robot.set_digital_out(1,True)
+            sw.robot.set_digital_out(1,True)
             self.state = 5
-            self.log_string += "Tool tuned\n"
-            self.Refresh()
+            self.Refresh("Tool tuned\n", True)
             self.Start()
     
-    def Grinding(self,dt):
+    def Grinding(self):
         if "Grinding in progress\n" not in self.log_string:
-            self.log_string += "Grinding in progress\n(PRESS DEAD MAN'S SWITCH TO TURN ON TOOL AND KEEP PRESSED)\n"
-            self.Refresh()
-        self.robot.movel([0, 0, 0.04, 0, 0, 0], relative = True)#, vel = 2.0, acc = 1.0)
-        self.robot.movel(self.startgrinder_offset)
-        self.robot.movel([0, 0 + (self.d_x / 1000), 0, 0, 0, 0], relative = True)
-        self.robot.movel(self.welposgrinder_offset)
-        self.robot.set_tool_voltage(24)
-        self.robot.set_analog_out(1, 0.5)
+            self.Refresh("Grinding in progress\n(PRESS DEAD MAN'S SWITCH TO TURN ON TOOL AND KEEP PRESSED)\n", True)
+        sw.robot.movel([0, 0, 0.04, 0, 0, 0], relative = True)#, vel = 2.0, acc = 1.0)
+        sw.robot.movel(self.startgrinder_offset)
+        sw.robot.movel([0, 0 + (self.d_x / 1000), 0, 0, 0, 0], relative = True)
+        sw.robot.movel(self.welposgrinder_offset)
+#        sw.robot.set_tool_voltage(24)
+        sw.robot.set_analog_out(1, 0.5)
         sw.weldfunction(self.startgrinder, self.welposgrinder, self.r, vel = 0.005, acc = 1)
         self.state = 6
-        self.log_string += "Grinding finished\n(DEAD MAN'S SWITCH CAN BE RELEASED)\n" 
-        self.Refresh()
+        self.Refresh("Grinding finished\n(DEAD MAN'S SWITCH CAN BE RELEASED)\n", True)
         self.Start()
         
-    def Reset(self,dt):
-        self.robot.set_analog_out(0, 0.0)
-        self.robot.set_analog_out(1, 0.0)
-        self.robot.set_tool_voltage(0)
-        self.robot.set_digital_out(1, False)
+    def Reset(self):
+        sw.robot.set_analog_out(0, 0.0)
+        sw.robot.set_analog_out(1, 0.0)
+        sw.robot.set_tool_voltage(0)
+        sw.robot.set_digital_out(1, False)
         self.state = 0
-        self.log_string += "Everything is reset\n----------END----------"
+        self.Refresh("Everything is reset\n----------END----------", True)
         self.Refresh()
         
-    def Refresh(self):
+    def Refresh(self, txt, add):
+        if add:
+            self.log_string += txt
+        else:
+            self.log_string = txt
         self.clear_widgets()
         self.__init__()
+        print('refreshed')
 
 class WindowManager(ScreenManager):
     pass
