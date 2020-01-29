@@ -15,7 +15,7 @@ import serial
 r = 320
 
 #Starting position
-start = [1.312, -0.168, -0.050, 3.13, 0.00, 0.00]
+start = [1.345, -0.168, -0.030, 3.13, 0.00, 0.00]
 
 if __name__ == "__main__":
     
@@ -31,13 +31,14 @@ if __name__ == "__main__":
         robot.set_tool_voltage(0)
         robot.set_digital_out(1, False)
         
+        time.sleep(1)
+        
         print('Moving to start position......')
         print('-------------------------')
         
         #Move to the common start position
         robot.movel(start, vel = 1.0, acc = 1.0)
-        
-        #Get in sync with serial communication of the arduino
+                
         arduinocheck()
         
         #Move down till the endswitch hits the pipe
@@ -47,24 +48,22 @@ if __name__ == "__main__":
         print('-------------------------')
         
         while True:                   
-            if switch() <= 0.1:
+            if switch() <= 3:
                 robot.stop()
                 print('Found the pipe!')
                 print('-------------------------')
-                robot.movel([0, 0, -0.006, 0, 0, 0], relative = True, vel = 0.003, acc = 1)
+                robot.movel([0, 0, -0.010, 0, 0, 0], relative = True, vel = 0.003, acc = 1)
                 start = robot.getl()
                 startgrinder = sensor_grind_coords(start)
-                startgrinder_flipped = sensor_grind_coords_flipped(start)
-                startgrinder_offset = offset(startgrinder, 0, 0, 0.030)
-                startgrinder_flipped_offset = offset(startgrinder_flipped, 0, 0, 0.030)
-                
+                startgrinder_offset = offset(startgrinder, 0, 0, 0.030)      
+                arduinocheck()
                 break
         
         ############################################
         
         print('Rotating pipe......')
         print('-------------------------')
-        
+                
         #Put the rotator on, stop if the induxion sensor finds the weld
         robot.set_analog_out(0, 0.5)
         
@@ -72,7 +71,7 @@ if __name__ == "__main__":
         print('-------------------------')
         
         while True:
-            if induxion() <= 0.1:
+            if induxion() <= 3:
                 robot.set_analog_out(0, 0)
                 print('Found the weld!')
                 print('-------------------------')
@@ -85,7 +84,7 @@ if __name__ == "__main__":
         
         #Move up and go ... cm forward for the second coordinate of the weld
         robot.movel([0, 0, 0.03, 0, 0, 0], relative = True)
-        robot.movel([-0.090,0.0,0,0,0,0], relative = True, wait = True)#, vel = 2.0, acc = 1.0)
+        robot.movel([-0.110,0.0,0,0,0,0], relative = True, wait = True, vel = 2.0, acc = 1.0)
         robot.movel([0, 0, -0.03, 0, 0, 0], relative = True)
         
         #Beginningpoint for weld searching
@@ -93,23 +92,20 @@ if __name__ == "__main__":
                 
         print('Searching for weld......')
         print('-------------------------')
-
-        #Get in sync with serial communication of the arduino
+            
+        #Start searching for the second weld coordinate, stop if the induxion sensor finds the weld
         arduinocheck()
         
-        #Start searching for the second weld coordinate, stop if the induxion sensor finds the weld
         robot.movels(quartercircle(r, start_circle), wait = False)
              
         while True:           
-            if induxion() <= 0.1:
+            if induxion() <= 3:
                 robot.stop()
                 print('Found the weld!')
                 print('-------------------------')
                 welpos = robot.getl()
                 welposgrinder = sensor_grind_coords(welpos)
-                welposgrinder_flipped = sensor_grind_coords_flipped(welpos)
                 welposgrinder_offset = offset(welposgrinder, 0, 0, 0.030)
-                welposgrinder_flipped_offset = offset(welposgrinder_flipped, 0, 0, 0.030)
                 x_w, y_w, z_w = spiralcoords(start, welpos)
                 break
             
@@ -129,13 +125,16 @@ if __name__ == "__main__":
         
         #Move down untill the induxion sensor finds the pipe
         #robot.movel([0, 0, -0.500, 0, 0, 0], relative = True, wait = False, vel = 0.003, acc = 1)
-        robot.translate_tool([0,0,1], vel = 0.003, acc = 1, wait = False)
+        arduinocheck()
+        robot.translate_tool([0,0,1], vel = 0.002, acc = 1, wait = False)
         
         while True:
-            if endstop_grinder() <= 0.1:
+            if endstop_grinder() <= 50:
                 robot.stop()
+                robot.translate_tool([0,0,-0.004], vel = 0.002, acc = 1, wait = False)
                 print('Reached orientation point')
                 print('-------------------------')
+                time.sleep(1)
                 robot.set_digital_out(1, True)
                 break
             
@@ -149,21 +148,116 @@ if __name__ == "__main__":
         #Move up from orientation point
         robot.movel([0, 0, 0.04, 0, 0, 0], relative = True)#, vel = 2.0, acc = 1.0)
         
-#        robot.movej([0,0,0,0,0,3.14], relative = True)
-        
-        robot.movel(startgrinder_offset)
+        #Move to the beginning of the weld
+        robot.movel(startgrinder_offset, vel = 2.0, acc = 1.0)
          
         #Move to the x position of the second weldpoint
-        robot.movel([0, 0 + (x_w / 1000), 0, 0, 0, 0], relative = True)
+        robot.movel([0, 0 + (x_w / 1000), 0, 0, 0, 0], relative = True, vel = 2.0, acc = 1.0)
+        
+        welposgrinder_offset = offset(welposgrinder_offset, 0.03, 0, 0)
+        startgrinder_offset = offset(startgrinder_offset, 0.03, 0, 0)
+        welposgrinder = offset(welposgrinder, 0.03, 0, 0)
+        startgrinder = offset(startgrinder, 0.03, 0, 0)
         
         #Move to the second weldpoint to start grinding
-        robot.movel(welposgrinder_offset)
+        robot.movel(welposgrinder_offset, vel = 2.0, acc = 1.0)
+        
+        welposgrinder_1 = offset(welposgrinder, 0, 0, 0.005)
+        startgrinder_1 = offset(startgrinder, 0, 0, 0.005)
+        
+        welposgrinder_2 = offset(welposgrinder, 0, 0, 0.002)
+        startgrinder_2 = offset(startgrinder, 0, 0, 0.002)
         
         #Set grinder
         robot.set_analog_out(1, 0.5)
         
-        weldfunction(startgrinder, welposgrinder, r, vel = 0.005, acc = 1)
-                
+        arduinocheck()
+        
+        #Grind the weld....
+        robot.movels(spiralback(startgrinder_1, welposgrinder_1, r + 78), vel = 0.010, acc = 0.2)#, vel = 0.005, acc = 1)
+        robot.movel([0.04, -((40*x_w)/z_w)/1000, ((40*y_w)/z_w)/1000, 0, 0, 0], relative = True)
+        
+        robot.movel([0, 0, 0.04, 0, 0, 0], relative = True, vel = 2.0, acc = 1.0)
+        robot.movel([0, 0 + (x_w / 1000), 0, 0, 0, 0], relative = True, vel = 2.0, acc = 1.0)
+        robot.movel(welposgrinder_offset, vel = 2.0, acc = 1.0)
+        
+        robot.movels(spiralback(startgrinder_2, welposgrinder_2, r + 78), vel = 0.005, acc = 0.2)#, vel = 0.005, acc = 1)
+        robot.movel([0.04, -((40*x_w)/z_w)/1000, ((40*y_w)/z_w)/1000, 0, 0, 0], relative = True)
+        
+        robot.movel([0, 0, 0.010, 0, 0, 0], relative = True, vel = 2.0, acc = 1.0)
+        robot.movel([0, 0 + (x_w / 1000), 0, 0, 0, 0], relative = True, vel = 2.0, acc = 1.0)
+        robot.movel(welposgrinder_offset, vel = 2.0, acc = 1.0)
+        
+        robot.movels(spiralback(startgrinder, welposgrinder, r + 78), vel = 0.010, acc = 0.2)#, vel = 0.005, acc = 1)
+        robot.movel([0.04, -((40*x_w)/z_w)/1000, ((40*y_w)/z_w)/1000, 0, 0, 0], relative = True)
+#        
+        robot.movel([0, 0, 0.04, 0, 0, 0], relative = True, vel = 2.0, acc = 1.0)
+        
+#        robot.movel([0.100, 0, 0, 0, 0, 0], relative = True, wait = False)
+#        
+#        while True:
+#            if endstop_grinder() > 50:
+#                robot.movel([0.05, -, 0, 0, 0, 0], relative = True)
+#                robot.movel([0, 0, 0.05, 0, 0, 0], relative = True)
+#                robot.movel(welposgrinder_offset)#, vel = 2.0, acc = 1.0)
+#                print('Reached end of the weld')
+#                print('-------------------------')
+#                break
+            
+#        robot.movels(spiralback(startgrinder, welposgrinder, r + 78))#, vel = 0.005, acc = 1)
+#        robot.movel([0.100, 0, 0, 0, 0, 0], relative = True, wait = False)
+#        
+#        while True:
+#            if endstop_grinder() <= 50:
+#                robot.movel([0.05, ((x_w/1000) / (z_w/1000) ), 0, 0, 0, 0], relative = True)
+#                robot.movel([0, 0, 0.05, 0, 0, 0], relative = True)
+#                robot.movel(welposgrinder_offset, vel = 2.0, acc = 1.0)
+#                print('Reached end of the weld')
+#                print('-------------------------')
+#                break
+        
+        
+        
+#        robot.movel([0, 0, 0.03, 0, 0, 0], relative = True)
+#        robot.movel(welposgrinder_offset, vel = 2.0, acc = 1.0)
+#        
+#        robot.movels(spiralback(startgrinder, welposgrinder, r + 78))
+#        robot.movel([0.040, 0, 0., 0, 0, 0], relative = True)
+#        
+#        robot.movel([0, 0, 0.03, 0, 0, 0], relative = True)
+#        robot.movel(welposgrinder_offset, vel = 2.0, acc = 1.0)
+#        
+#        robot.movels(spiralback(startgrinder, welposgrinder, r + 78))
+#        robot.movel([0.040, 0, 0., 0, 0, 0], relative = True)
+        
+#        robot.movels(spiralcoordinates(startgrinder, welposgrinder, r + 78))#, vel = 0.005, acc = 1) 
+#        robot.movels(spiralback(startgrinder, welposgrinder, r + 78))#, vel = 0.005, acc = 1)
+#        robot.movel([0.030, 0, 0., 0, 0, 0], relative = True)
+#        robot.movels(spiralcoordinates(startgrinder, welposgrinder, r + 78))#, vel = 0.005, acc = 1) 
+#        robot.movels(spiralback(startgrinder, welposgrinder, r + 78))#, vel = 0.005, acc = 1)
+#        robot.movel([0.030, 0, 0., 0, 0, 0], relative = True)
+#        robot.movels(spiralcoordinates(startgrinder, welposgrinder, r + 78))#, vel = 0.005, acc = 1) 
+#
+        robot.set_analog_out(0, 0.0)
+        robot.set_analog_out(1, 0.0)
+        robot.set_tool_voltage(0)
+        robot.set_digital_out(1, False)
+        
+        robot.movel(start)
+
+                   
+    finally:
+        robot.set_analog_out(0, 0.0)
+        robot.set_analog_out(1, 0.0)
+        robot.set_tool_voltage(0)
+        robot.set_digital_out(1, False)
+        
+        print('Movement done')
+        robot.close() 
+        
+        
+        
+        
 #        #Make the grinding move
 #        robot.movels(spiralback(startgrinder, welposgrinder, r + 78), vel = 0.001, acc = 1)
 #        
@@ -180,12 +274,3 @@ if __name__ == "__main__":
 #            
 #            if induxion() >= 3:
 #                break
-                   
-    finally:
-        robot.set_analog_out(0, 0.0)
-        robot.set_analog_out(1, 0.0)
-        robot.set_tool_voltage(0)
-        robot.set_digital_out(1, False)
-        
-        print('Movement done')
-        robot.close() 
