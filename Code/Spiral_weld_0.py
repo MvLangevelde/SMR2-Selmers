@@ -10,6 +10,7 @@ import math
 from urx import Robot
 import serial
 import pyfirmata 
+import time
 
 robot = Robot("192.168.0.20", True)
 arduino = serial.Serial('/dev/cu.usbmodem144201', 9600)
@@ -17,13 +18,13 @@ arduino = serial.Serial('/dev/cu.usbmodem144201', 9600)
 #board = Arduino('/dev/cu.usbmodem144101')
 #it = util.Iterator(board)
 
-board = pyfirmata.Arduino('/dev/cu.usbmodem144201')
-it = pyfirmata.util.Iterator(board)
-it.start()
-
-induxion_sensor = board.get_pin('a:0:0')
-end_switch = board.get_pin('a:1:0')
-induxion_end_switch = board.get_pin('a:2:0')
+#board = pyfirmata.Arduino('/dev/cu.usbmodem144201')
+#it = pyfirmata.util.Iterator(board)
+#it.start()
+#
+#induxion_sensor = board.get_pin('a:0:0')
+#end_switch = board.get_pin('a:1:0')
+#induxion_end_switch = board.get_pin('a:2:0')
 
 
 
@@ -43,7 +44,7 @@ def spiralcoordinates(start, weld, radius1):
     y_cir = y_cir1[::-1]
     
     x = abs(start[0] - weld[0]) 
-    y = abs(start[1] - weld[1])
+    y = abs(start[1] - weld[1]) 
     z = radius - abs(start[2] - weld[2]) 
     
     print('Spiralweld coordinate =', [x, y, z])
@@ -52,7 +53,7 @@ def spiralcoordinates(start, weld, radius1):
     
     if length == 0 or length == 1:
         length = 2
-         
+                
     print('Length of quarter circle =', length)
     print('-------------------------')
     
@@ -135,7 +136,7 @@ def grindsetup(r, pos):
     
     pose_list = []
     
-    rx_list = np.linspace(abs(pos[3]), 1.5*math.pi, len(x_cir))
+    rx_list = np.linspace(abs(pos[3]), 1.55*math.pi, len(x_cir))
     
     for i in range(0,len(y_cir)):
     
@@ -162,7 +163,17 @@ def sensor_grind_coords(sensor):
     rx = sensor[3]
     ry = sensor[4]
     rz = sensor[5]
-    grindcoord = [x - 0.375, y - 0.00, z + 0.013, 3.14, 0.0, -0.244]
+    grindcoord = [x - 0.375, y, z + 0.003, rx, ry, -0.244]
+    return grindcoord
+
+def sensor_grinder(sensor):
+    x = sensor[0]
+    y = sensor[1]
+    z = sensor[2]
+    rx = sensor[3]
+    ry = sensor[4]
+    rz = sensor[5]
+    grindcoord = [x - 0.340 , y, z, rx, ry, -0.244]
     return grindcoord
 
 def offset(sensor, x1, y1, z1):
@@ -179,65 +190,85 @@ def arduinocheck():
             
     print('Checking arduino......')
     print('-------------------------')
+    
+    arduino.flushInput()
+    arduino.flushOutput()
         
-    for i in range(0,100):
+    for i in range(0,150):
         data = arduino.readline().decode(encoding="utf-8", errors='ignore').rstrip("\r\n")
         data = str.split(data)
         i+=1
         print(data)
+        
+#    time.sleep(1)
+    
     return data
 
 
 def induxion():  
 #    board.analog[0].enable_reporting()
 #    indux = float(board.analog[0].read())
+    arduino.flushInput()
+    arduino.flushOutput()
     
-#    data1 = arduino.readline().decode(encoding="utf-8", errors='ignore').rstrip("\r\n")      
-#    data =  str.split(data1)
-#    indux = int(data[0])
-#    print('Inudxion sensor data -', indux)
-#    return indux
-    data = induxion.read()
-    print('Induxion data =', data)
-    
-    return (float(data))
+    data1 = arduino.readline().decode(encoding="utf-8", errors='ignore').rstrip("\r\n")      
+    data =  str.split(data1)
+
+    try:
+        indux = int(data[1])
+    except IndexError:
+        indux = 1000
+    except ValueError:
+        indux = 1000
+
+    print('Inudxion sensor data -', indux)
+    return indux
+#    data = induxion_sensor.read()
+#    print('Induxion data =', data)
+#    
+#    return (float(data))
 
 def switch():    
-#    data1 = arduino.readline().decode(encoding="utf-8", errors='ignore').rstrip("\r\n")
-#    data =  str.split(data1)
-#    
-#    try:
-#        switch = int(data[1])
-#    except IndexError:
-#        switch = 300
-#    except ValueError:
-#        switch = 300
-#    
-#    print('End switch data =', switch)
-#    return switch 
-    data = end_switch.read()
-    print('End switch data =', data)
+    arduino.flushInput()
+    arduino.flushOutput()
     
-    return (float(data))
+    data1 = arduino.readline().decode(encoding="utf-8", errors='ignore').rstrip("\r\n")
+    data =  str.split(data1)
+    
+    try:
+        switch = int(data[2])
+    except IndexError:
+        switch = 300
+    except ValueError:
+        switch = 300
+    
+    print('End switch data =', switch)
+    return switch 
+#    data = end_switch.read()
+#    print('End switch data =', data)
+    
+#    return (data)
 
 def endstop_grinder():
 #    board.analog[2].enable_reporting()
 #    switch = float(board.analog[2].read()
+    arduino.flushInput()
+    arduino.flushOutput()
     
-#    data1 = arduino.readline().decode(encoding="utf-8", errors='ignore').rstrip("\r\n")
-#    data =  str.split(data1)
-#    try:
-#        switch = int(data[2])
-#    except IndexError:
-#        switch = 300
-#    
-#    print('End switch data =', switch)
-#    return switch
+    data1 = arduino.readline().decode(encoding="utf-8", errors='ignore').rstrip("\r\n")
+    data =  str.split(data1)
+    try:
+        switch = int(data[3])
+    except IndexError:
+        switch = 300
+    
+    print('End switch data =', switch)
+    return switch
 
-    data = induxion_end_switch.read()
-    print('End switch data =', data)
-    
-    return (float(data))
+#    data = induxion_end_switch.read()
+#    print('End switch data =', data)
+#    
+#    return (float(data))
 
 def weldfunction(startgrinder, welposgrinder, r, vel, acc):
     
@@ -292,15 +323,15 @@ def weldfunction(startgrinder, welposgrinder, r, vel, acc):
 #      
 #    return pose_list
     
-#def sensor_grind_coords_flipped(sensor):
-#    x = sensor[0]
-#    y = sensor[1]
-#    z = sensor[2]
-#    rx = 0
-#    ry = 3.14
-#    rz = 0
-#    grindcoord = [x + 0.175, y, z + 0.040, rx, ry, rz]
-#    return grindcoord
+def sensor_grind_coords_flipped(sensor):
+    x = sensor[0]
+    y = sensor[1]
+    z = sensor[2]
+    rx = 0
+    ry = 3.14
+    rz = 0
+    grindcoord = [x + 0.175, y, z + 0.040, rx, ry, rz]
+    return grindcoord
 
 
 
