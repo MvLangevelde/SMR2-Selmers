@@ -14,7 +14,7 @@ from urx import Robot
 import math
 import time
 
-#Window.fullscreen = 'auto'
+Window.fullscreen = 'auto'
 
 class Home(Screen):
     pass
@@ -76,11 +76,14 @@ class Control(Screen):
             #Go to pipe
             elif self.state == 1:
                 sw.arduinocheck()
+                time.sleep(1)
                 sw.robot.movel([0, 0, -0.500, 0, 0, 0], relative = True, wait = False, vel = 0.007, acc = 1)
                 Clock.schedule_interval(self.CheckForPipe,1/1000)
                 
             #Looking for weld
             elif self.state == 2:
+                sw.arduinocheck()
+                time.sleep(1)
                 sw.robot.set_analog_out(0, 0.5)
                 Clock.schedule_interval(self.CheckForWeld,1/1000)
                 
@@ -91,6 +94,7 @@ class Control(Screen):
                 sw.robot.movel([0, 0, -0.03, 0, 0, 0], relative = True)
                 self.start_circle = sw.robot.getl()
                 sw.arduinocheck()
+                time.sleep(1)
                 sw.robot.movels(sw.quartercircle(self.r, self.start_circle), wait = False)
                 Clock.schedule_interval(self.WeldDirection,1/1000)
                 
@@ -101,6 +105,8 @@ class Control(Screen):
                 sw.robot.movels(sw.grindsetup(self.r + 78, self.startgrinder_offset), wait = False)
                 time.sleep(10)
                 sw.robot.stop()
+                sw.arduinocheck()
+                time.sleep(1)
                 sw.robot.translate_tool([0, 0, 1], vel = 0.003, acc = 1, wait = False)
                 Clock.schedule_interval(self.Set,1/1000)
             
@@ -192,7 +198,7 @@ class Control(Screen):
             self.Refresh("Grinding in progress\n(PRESS DEAD MAN'S SWITCH TO TURN ON TOOL AND KEEP PRESSED)\n", True)
         sw.robot.movel([0, 0, 0.04, 0, 0, 0], relative = True)#, vel = 2.0, acc = 1.0)
         sw.robot.movel(self.startgrinder_offset)
-        sw.robot.movel([0, 0 + (self.d_x / 1000), 0, 0, 0, 0], relative = True)
+        sw.robot.movel([0, 0 + (self.x_w / 1000), 0, 0, 0, 0], relative = True)
         sw.robot.movel(self.welposgrinder_offset)
 #        sw.robot.set_tool_voltage(24)
         sw.robot.set_analog_out(1, 0.5)
