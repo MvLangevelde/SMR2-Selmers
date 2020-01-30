@@ -1,0 +1,27 @@
+int sensorPin = A0;
+int switchPin = A1;
+int switchgrindPin = A2;
+
+int sensorValue = 0;
+int switchValue = 0;
+int switchgrindValue = 0;
+
+void setup() {
+  // put your setup code here, to run once:
+  Serial.begin(9600);
+}
+
+void loop() {
+  // put your main code here, to run repeatedly:
+sensorValue = analogRead(sensorPin);
+switchValue = analogRead(switchPin);
+switchgrindValue = analogRead(switchgrindPin);
+
+Serial.print("0000000000000000000000000 ");
+Serial.print(sensorValue);
+Serial.print(" ");
+Serial.print(switchValue);
+Serial.print(" ");
+Serial.println(switchgrindValue);
+delay(10);
+}
