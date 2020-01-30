@@ -24,13 +24,14 @@ class Control(Screen):
     d = ''
     log_string = ''
     state = 0
-#    robot = sw.robot
-#    arduino = sw.arduino
+    robot = sw.robot
+    arduino = sw.arduino
     start = [1.334, -0.168, -0.030, 3.13, 0.00, 0.00]
         
     def __init__(self, **kwargs):
         super(Control, self).__init__(**kwargs)
         self.Build()
+        print('done init')
     
     def Build(self):
         self.log = GridLayout(cols = 1, size_hint = (0.5, 1), pos_hint = {'x':0.5, 'y':0})
@@ -39,6 +40,7 @@ class Control(Screen):
         self.log.add_widget(self.rightside)
         
         self.add_widget(self.log)        
+        print("done building")
     
     def ConfirmDiameter(self):
         if self.state == 0:
@@ -75,15 +77,12 @@ class Control(Screen):
             
             #Go to pipe
             elif self.state == 1:
-                sw.arduinocheck()
-                time.sleep(1)
+#                sw.arduinocheck()
                 sw.robot.movel([0, 0, -0.500, 0, 0, 0], relative = True, wait = False, vel = 0.007, acc = 1)
                 Clock.schedule_interval(self.CheckForPipe,1/1000)
                 
             #Looking for weld
             elif self.state == 2:
-                sw.arduinocheck()
-                time.sleep(1)
                 sw.robot.set_analog_out(0, 0.5)
                 Clock.schedule_interval(self.CheckForWeld,1/1000)
                 
@@ -94,7 +93,6 @@ class Control(Screen):
                 sw.robot.movel([0, 0, -0.03, 0, 0, 0], relative = True)
                 self.start_circle = sw.robot.getl()
                 sw.arduinocheck()
-                time.sleep(1)
                 sw.robot.movels(sw.quartercircle(self.r, self.start_circle), wait = False)
                 Clock.schedule_interval(self.WeldDirection,1/1000)
                 
@@ -105,9 +103,7 @@ class Control(Screen):
                 sw.robot.movels(sw.grindsetup(self.r + 78, self.startgrinder_offset), wait = False)
                 time.sleep(10)
                 sw.robot.stop()
-                sw.arduinocheck()
-                time.sleep(1)
-                sw.robot.translate_tool([0, 0, 1], vel = 0.003, acc = 1, wait = False)
+                sw.robot.translate_tool([0, 0, 1], vel = 0.002, acc = 1, wait = False)
                 Clock.schedule_interval(self.Set,1/1000)
             
             #Grinding
@@ -132,12 +128,13 @@ class Control(Screen):
             sw.robot.set_analog_out(1, 0.0)
             sw.robot.set_tool_voltage(0)          
             self.Refresh("STOPPING PROCESS!\nHoming\n", True)
-            #go to safe position
+            sw.robot.movel([0, 0, 0.10, 0, 0, 0], relative = True, vel = 0.003, acc = 1)
             sw.robot.set_digital_out(1, False)
             self.state = 0
             self.Refresh("PROCESS STOPPED AND RESET!\nPress 'Start grinding' to restart the process \nor enter different diameter than " + self.d + "\n", True)
             
     def CheckForPipe(self,dt):
+        print('joe')
         if "Approach pipe\n" not in self.log_string:
             self.Refresh("Approach pipe\n", True)
         if sw.switch() <= 3:
@@ -146,7 +143,6 @@ class Control(Screen):
             sw.robot.movel([0, 0, -0.006, 0, 0, 0], relative = True, vel = 0.003, acc = 1)
             self.start = sw.robot.getl()
             self.startgrinder = sw.sensor_grind_coords(self.start)
-#            self.startgrinder_flipped = sw.sensor_grind_coords_flipped(self.start)
             self.startgrinder_offset = sw.offset(self.startgrinder, 0, 0, 0.030)
             self.state = 2
             self.Refresh("Tool on pipe\n", True)
@@ -170,9 +166,7 @@ class Control(Screen):
             Clock.unschedule(self.WeldDirection)
             self.welpos = sw.robot.getl()
             self.welposgrinder = sw.sensor_grind_coords(self.welpos)
-#            self.welposgrinder_flipped = sw.sensor_grind_coords_flipped(self.welpos)
             self.welposgrinder_offset = sw.offset(self.welposgrinder, 0, 0, 0.030)
-#            self.welposgrinder_flipped_offset = sw.offset(self.welposgrinder_flipped, 0, 0, 0.030)
             self.x_w, self.y_w, self.z_w = sw.spiralcoords(self.start, self.welpos)               
             if (self.x_w >= -0.05 and self.x_w <= 0.05):
                 self.state = 4
@@ -197,12 +191,43 @@ class Control(Screen):
         if "Grinding in progress\n" not in self.log_string:
             self.Refresh("Grinding in progress\n(PRESS DEAD MAN'S SWITCH TO TURN ON TOOL AND KEEP PRESSED)\n", True)
         sw.robot.movel([0, 0, 0.04, 0, 0, 0], relative = True)#, vel = 2.0, acc = 1.0)
-        sw.robot.movel(self.startgrinder_offset)
-        sw.robot.movel([0, 0 + (self.x_w / 1000), 0, 0, 0, 0], relative = True)
-        sw.robot.movel(self.welposgrinder_offset)
-#        sw.robot.set_tool_voltage(24)
+        sw.robot.movel(self.startgrinder_offset, vel = 2.0, acc = 1.0)
+        sw.robot.movel([0, 0 + (self.x_w / 1000), 0, 0, 0, 0], relative = True, vel = 2.0, acc = 1.0)
+        
+        self.welposgrinder_offset = sw.offset(self.welposgrinder_offset, 0.03, 0, 0)
+        self.startgrinder_offset = sw.offset(self.startgrinder_offset, 0.03, 0, 0)
+        self.welposgrinder = sw.offset(self.welposgrinder, 0.03, 0, 0)
+        self.startgrinder = sw.offset(self.startgrinder, 0.03, 0, 0)
+        
+        sw.robot.movel(self.welposgrinder_offset, vel = 2.0, acc = 1.0)
+        
+        self.welposgrinder_1 = sw.offset(self.welposgrinder, 0, 0, 0.005)
+        self.startgrinder_1 = sw.offset(self.startgrinder, 0, 0, 0.005)
+        
+        self.welposgrinder_2 = sw.offset(self.welposgrinder, 0, 0, 0.002)
+        self.startgrinder_2 = sw.offset(self.startgrinder, 0, 0, 0.002)
+        
         sw.robot.set_analog_out(1, 0.5)
-        sw.weldfunction(self.startgrinder, self.welposgrinder, self.r, vel = 0.005, acc = 1)
+
+        sw.robot.movels(self.spiralback(self.startgrinder_1, self.welposgrinder_1, self.r + 78), vel = 0.010, acc = 0.2)#, vel = 0.005, acc = 1)
+        sw.robot.movel([0.04, -((40*self.x_w)/self.z_w)/1000, ((40*self.y_w)/self.z_w)/1000, 0, 0, 0], relative = True)
+        
+        sw.robot.movel([0, 0, 0.04, 0, 0, 0], relative = True, vel = 2.0, acc = 1.0)
+        sw.robot.movel([0, 0 + (self.x_w / 1000), 0, 0, 0, 0], relative = True, vel = 2.0, acc = 1.0)
+        sw.robot.movel(self.welposgrinder_offset, vel = 2.0, acc = 1.0)
+        
+        sw.robot.movels(sw.spiralback(self.startgrinder_2, self.welposgrinder_2, self.r + 78), vel = 0.005, acc = 0.2)#, vel = 0.005, acc = 1)
+        sw.robot.movel([0.04, -((40*self.x_w)/self.z_w)/1000, ((40*self.y_w)/self.z_w)/1000, 0, 0, 0], relative = True)
+        
+        sw.robot.movel([0, 0, 0.010, 0, 0, 0], relative = True, vel = 2.0, acc = 1.0)
+        sw.robot.movel([0, 0 + (self.x_w / 1000), 0, 0, 0, 0], relative = True, vel = 2.0, acc = 1.0)
+        sw.robot.movel(self.welposgrinder_offset, vel = 2.0, acc = 1.0)
+        
+        sw.robot.movels(sw.spiralback(self.startgrinder, self.welposgrinder, self.r + 78), vel = 0.010, acc = 0.2)#, vel = 0.005, acc = 1)
+        sw.robot.movel([0.04, -((40*self.x_w)/self.z_w)/1000, ((40*self.y_w)/self.z_w)/1000, 0, 0, 0], relative = True)
+      
+        sw.robot.movel([0, 0, 0.04, 0, 0, 0], relative = True, vel = 2.0, acc = 1.0)
+        
         self.state = 6
         self.Refresh("Grinding finished\n(DEAD MAN'S SWITCH CAN BE RELEASED)\n", True)
         self.Start()
@@ -223,7 +248,6 @@ class Control(Screen):
             self.log_string = txt
         self.clear_widgets()
         self.__init__()
-        print('refreshed')
 
 class WindowManager(ScreenManager):
     pass
